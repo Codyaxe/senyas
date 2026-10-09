@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 class SenyasSettings {
   SenyasSettings._();
   static final demoMode = ValueNotifier<bool>(false);
+  static final tapToGloss = ValueNotifier<bool>(false);
 
   /// Honest scope label shown on the sign screen (always visible).
   static const recognitionScope =

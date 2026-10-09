@@ -260,6 +260,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ],
                             ),
                           ),
+
+                          // Divider Line
+                          const Divider(
+                              height: 1, indent: 16, endIndent: 16, color: AppColors.divider),
+
+                          // Row 4: Tap to Gloss
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.touch_app_outlined,
+                                    size: 28, color: AppColors.textSecondary),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Tap to Gloss',
+                                        style: AppTextStyles.semiBold16(),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Show manual sign chips to compose phrases by tapping',
+                                        style: AppTextStyles.caption(
+                                            color: AppColors.textSecondary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                CustomToggleSwitch(
+                                  value: SenyasSettings.tapToGloss.value,
+                                  onChanged: (val) {
+                                    SenyasSettings.tapToGloss.value = val;
+                                    setState(() {});
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),

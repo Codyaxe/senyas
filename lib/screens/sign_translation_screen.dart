@@ -35,7 +35,7 @@ class _SignTranslationScreenState extends State<SignTranslationScreen>
   String _statusLabel = 'Starting camera…';
   List<String> _phrase = const [];
   String _recognized = '';
-  String _recognizedSub = 'Sign, or tap glosses below';
+  String _recognizedSub = 'Perform an FSL sign to translate';
   String? _sourceLabel; // which engine produced the text
   String? _error;
   final List<String> _manual = []; // tap-to-select gloss fallback
@@ -46,8 +46,6 @@ class _SignTranslationScreenState extends State<SignTranslationScreen>
   int? _lastMs;
   Map<String, dynamic>? _lastMeta;
   bool _showDiagnostics = true;
-
-  bool _isManualRecording = false;
 
   static const _demoGestures = <String, String>{
     'WAVE': '👋',
@@ -459,66 +457,77 @@ class _SignTranslationScreenState extends State<SignTranslationScreen>
                         ),
                       ),
 
-                    // Tap-to-select gloss fallback (fixed 21-gloss vocabulary)
-                    const SizedBox(height: 16),
-                    Row(children: [
-                      Expanded(
-                        child: Text(
-                          _manual.isEmpty
-                              ? 'Tap glosses to build a phrase'
-                              : 'Phrase: ${_manual.join(' ')}',
-                          style: AppTextStyles.label(color: AppColors.textPrimary),
-                        ),
-                      ),
-                      if (_manual.isNotEmpty)
-                        TextButton(
-                            onPressed: () => setState(_manual.clear),
-                            child: const Text('Clear')),
-                      FilledButton(
-                        onPressed: _manual.isEmpty ? null : _translateManual,
-                        style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.accentGreenDark),
-                        child: const Text('Isalin'),
-                      ),
-                    ]),
-                    const SizedBox(height: 6),
+                    // Tap-to-select gloss fallback (optional in settings)
                     ValueListenableBuilder<bool>(
-                      valueListenable: SenyasSettings.demoMode,
-                      builder: (_, demo, __) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: 6, runSpacing: 6,
-                            children: GlossVocab.all
-                                .map((g) => ActionChip(
-                                      label: Text(
-                                          demo && g.liveHint != null
-                                              ? '${g.liveHint!.split(' ').first} ${g.id}'
-                                              : g.id,
-                                          style: const TextStyle(fontSize: 12)),
-                                      tooltip: '${g.fil} — ${g.en}',
-                                      visualDensity: VisualDensity.compact,
-                                      onPressed: _manual.length >= 6
-                                          ? null
-                                          : () => setState(
-                                              () => _manual.add(g.id)),
-                                    ))
-                                .toList(),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Text(
-                              demo
-                                  ? 'Demo mode: the camera also accepts the 7 static '
-                                      'handshapes marked above — a heuristic demo aid, '
-                                      'not part of the FSL-105 recognizer.'
-                                  : 'Manual input — taps bypass the camera recognizer.',
-                              style: AppTextStyles.label(
-                                  color: AppColors.textSecondary),
+                      valueListenable: SenyasSettings.tapToGloss,
+                      builder: (context, tapEnabled, _) {
+                        if (!tapEnabled) return const SizedBox.shrink();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 16),
+                            Row(children: [
+                              Expanded(
+                                child: Text(
+                                  _manual.isEmpty
+                                      ? 'Tap glosses to build a phrase'
+                                      : 'Phrase: ${_manual.join(' ')}',
+                                  style: AppTextStyles.label(color: AppColors.textPrimary),
+                                ),
+                              ),
+                              if (_manual.isNotEmpty)
+                                TextButton(
+                                    onPressed: () => setState(_manual.clear),
+                                    child: const Text('Clear')),
+                              FilledButton(
+                                onPressed: _manual.isEmpty ? null : _translateManual,
+                                style: FilledButton.styleFrom(
+                                    backgroundColor: AppColors.accentGreenDark),
+                                child: const Text('Isalin'),
+                              ),
+                            ]),
+                            const SizedBox(height: 6),
+                            ValueListenableBuilder<bool>(
+                              valueListenable: SenyasSettings.demoMode,
+                              builder: (_, demo, __) => Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Wrap(
+                                    spacing: 6, runSpacing: 6,
+                                    children: GlossVocab.all
+                                        .map((g) => ActionChip(
+                                              label: Text(
+                                                  demo && g.liveHint != null
+                                                      ? '${g.liveHint!.split(' ').first} ${g.id}'
+                                                      : g.id,
+                                                  style: const TextStyle(fontSize: 12)),
+                                              tooltip: '${g.fil} — ${g.en}',
+                                              visualDensity: VisualDensity.compact,
+                                              onPressed: _manual.length >= 6
+                                                  ? null
+                                                  : () => setState(
+                                                      () => _manual.add(g.id)),
+                                            ))
+                                        .toList(),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text(
+                                      demo
+                                          ? 'Demo mode: the camera also accepts the 7 static '
+                                              'handshapes marked above — a heuristic demo aid, '
+                                              'not part of the FSL-105 recognizer.'
+                                          : 'Manual input — taps bypass the camera recognizer.',
+                                      style: AppTextStyles.label(
+                                          color: AppColors.textSecondary),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        );
+                      },
                     ),
                     Align(
                       alignment: Alignment.centerRight,
@@ -531,101 +540,37 @@ class _SignTranslationScreenState extends State<SignTranslationScreen>
 
                     const SizedBox(height: 12),
 
-                    // Controls: Camera toggle & Hold-to-Sign button
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: _toggleDetection,
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 50, height: 50,
-                            decoration: BoxDecoration(
-                              color: _isDetecting
-                                  ? AppColors.cardBackground
-                                  : AppColors.accent,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: _isDetecting ? AppColors.border : Colors.transparent,
-                                width: 1.5,
+                    // Camera detection toggle button
+                    Center(
+                      child: GestureDetector(
+                        onTap: _toggleDetection,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 60, height: 60,
+                          decoration: BoxDecoration(
+                            color: _isDetecting
+                                ? AppColors.accentGreenDark
+                                : AppColors.accent,
+                            shape: BoxShape.circle,
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x26000000),
+                                blurRadius: 8,
+                                offset: Offset(0, 4),
                               ),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x1F000000),
-                                  blurRadius: 6,
-                                  offset: Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            alignment: Alignment.center,
-                            child: SvgPicture.asset(
-                              _isDetecting
-                                  ? AppAssets.stop
-                                  : AppAssets.cameraFilled,
-                              width: 20, height: 20,
-                              colorFilter: ColorFilter.mode(
-                                  _isDetecting ? AppColors.textSecondary : Colors.white,
-                                  BlendMode.srcIn),
-                            ),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: SvgPicture.asset(
+                            _isDetecting
+                                ? AppAssets.stop
+                                : AppAssets.cameraFilled,
+                            width: 26, height: 26,
+                            colorFilter: const ColorFilter.mode(
+                                Colors.white, BlendMode.srcIn),
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        GestureDetector(
-                          onTapDown: (_) {
-                            setState(() => _isManualRecording = true);
-                            senyas.startManualRecord();
-                          },
-                          onTapUp: (_) {
-                            setState(() => _isManualRecording = false);
-                            senyas.stopManualRecord();
-                          },
-                          onTapCancel: () {
-                            if (_isManualRecording) {
-                              setState(() => _isManualRecording = false);
-                              senyas.stopManualRecord();
-                            }
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                            decoration: BoxDecoration(
-                              color: _isManualRecording
-                                  ? const Color(0xFFE5484D)
-                                  : AppColors.accentGreenDark,
-                              borderRadius: BorderRadius.circular(30),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (_isManualRecording
-                                          ? const Color(0xFFE5484D)
-                                          : AppColors.accentGreenDark)
-                                      .withValues(alpha: 0.35),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _isManualRecording ? Icons.fiber_manual_record : Icons.touch_app,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _isManualRecording ? 'Recording Sign…' : 'Hold to Sign',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
 
                     const SizedBox(height: 12),
