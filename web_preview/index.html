@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Senyas - Flutter Frontend Preview & Figma Designs</title>
+  <meta name="description" content="Interactive Flutter frontend preview implementing 8 Figma designs for Senyas - Offline Two-Way Communication Assistant">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Navigation Header -->
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-icon">
+          <img src="../assets/images/senyas_logo.png" alt="Senyas Logo" onerror="this.style.display='none'">
+        </div>
+        <div class="brand-info">
+          <h1>Senyas Flutter Frontend</h1>
+          <span class="badge">8 Figma Designs Implemented</span>
+        </div>
+      </div>
+      <div class="screen-selector-bar" id="screen-selector">
+        <button class="screen-tab active" data-screen="intro" id="tab-intro">
+          <span class="screen-num">1</span> Introduction
+        </button>
+        <button class="screen-tab" data-screen="home" id="tab-home">
+          <span class="screen-num">2</span> Front Page
+        </button>
+        <button class="screen-tab" data-screen="history" id="tab-history">
+          <span class="screen-num">3</span> History
+        </button>
+        <button class="screen-tab" data-screen="profile" id="tab-profile">
+          <span class="screen-num">4</span> Profile
+        </button>
+        <button class="screen-tab" data-screen="settings" id="tab-settings">
+          <span class="screen-num">5</span> Settings
+        </button>
+        <button class="screen-tab" data-screen="speech" id="tab-speech">
+          <span class="screen-num">6</span> Speech Translation
+        </button>
+        <button class="screen-tab" data-screen="sign" id="tab-sign">
+          <span class="screen-num">7</span> Sign Translation
+        </button>
+        <button class="screen-tab" data-screen="statusbar" id="tab-statusbar">
+          <span class="screen-num">8</span> Status Bar
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Stage -->
+    <main class="preview-stage">
+      <!-- Left: Mobile Device Viewport -->
+      <div class="device-column">
+        <div class="device-frame" id="device-frame">
+          <div class="device-screen" id="device-screen">
+            <!-- Screen 1: Introduction (57:1254) -->
+            <section class="screen-view active" id="screen-intro" data-node="57:1254">
+              <div class="ios-status-bar intro-tint">
+                <span class="status-time">9:41</span>
+                <div class="status-icons">
+                  <img src="../assets/icons/ios_signal_green.svg" alt="signal" class="status-icon">
+                  <img src="../assets/icons/ios_wifi_green.svg" alt="wifi" class="status-icon">
+                  <img src="../assets/icons/ios_battery_green.svg" alt="battery" class="status-battery">
+                </div>
+              </div>
+              <div class="screen-scrollable intro-content">
+                <div class="intro-logo-wrap">
+                  <img src="../assets/images/senyas_logo.png" alt="Senyas Logo" class="intro-logo">
+                </div>
+                <h2 class="intro-title">Sign. Speak. Understand.</h2>
+                <p class="intro-desc">An offline two-way communication assistant for Deaf, Hard of Hearing and everyone.</p>
+
+                <div class="feature-pills">
+                  <div class="pill pill-blue">
+                    <div class="pill-icon-circle blue-circle">
+                      <img src="../assets/icons/wave.svg" alt="Wave icon">
+                    </div>
+                    <span class="pill-text blue-text">FSL - Filipino Translation</span>
+                  </div>
+                  <div class="pill pill-mint">
+                    <div class="pill-icon-circle mint-circle">
+                      <img src="../assets/icons/spectrum_teal.svg" alt="Spectrum icon">
+                    </div>
+                    <span class="pill-text mint-text">Speech - Text Translation</span>
+                  </div>
+                  <div class="pill pill-blue">
+                    <div class="pill-icon-circle blue-circle">
+                      <img src="../assets/icons/wifi_blue.svg" alt="Wifi icon">
+                    </div>
+                    <span class="pill-text blue-text">Works Offline (No Internet Needed)</span>
+                  </div>
+                </div>
+
+                <button class="btn-primary" id="btn-get-started">Get Started</button>
+              </div>
+              <div class="ios-home-indicator"><div class="indicator-bar"></div></div>
+            </section>
+
+            <!-- Screen 2: Front Page / Home (2:67) -->
+            <section class="screen-view" id="screen-home" data-node="2:67">
+              <div class="ios-status-bar dark-tint">
+                <span class="status-time">9:41</span>
+                <div class="status-icons">
+                  <img src="../assets/icons/ios_signal_dark.svg" alt="signal" class="status-icon">
+                  <img src="../assets/icons/ios_wifi_dark.svg" alt="wifi" class="status-icon">
+                  <img src="../assets/icons/ios_battery_dark.svg" alt="battery" class="status-battery">
+                </div>
+              </div>
+              <div class="page-header">
+                <div class="header-titles">
+                  <h2>Senyas</h2>
+                  <span class="header-sub">FTL Sign Translator AI</span>
+                </div>
+                <button class="icon-btn" id="home-ellipsis-btn">
+                  <img src="../assets/icons/ellipsis.svg" alt="Options">
+                </button>
+              </div>
+              <div class="screen-scrollable">
+                <!-- Featured Banner -->
+                <div class="feature-banner" id="banner-sign-quick">
+                  <img src="../assets/images/sign_communication.png" alt="Sign communication" class="banner-img">
+                  <div class="banner-text">
+                    <h3>Sign to translate to<br>FTL</h3>
+                    <p>Capture using the camera</p>
+                  </div>
+                </div>
+
+                <!-- Sign Translation Card Button -->
+                <div class="action-card card-mint" id="action-sign">
+                  <div class="card-icon-circle mint-deep">
+                    <img src="../assets/icons/camera_filled.svg" alt="Camera icon">
+                  </div>
+                  <div class="card-text">
+                    <h4>Sign Translation</h4>
+                    <p>Sign to Text</p>
+                  </div>
+                  <img src="../assets/icons/chevron_next.svg" alt="Next" class="chevron-next">
+                </div>
+
+                <!-- Speech Translation Card Button -->
+                <div class="action-card card-blue" id="action-speech">
+                  <div class="card-icon-circle blue-deep">
+                    <img src="../assets/icons/mic_filled.svg" alt="Mic icon">
+                  </div>
+                  <div class="card-text">
+                    <h4 class="blue-text-deep">Speech Translation</h4>
+                    <p>Voice to Text</p>
+                  </div>
+                  <img src="../assets/icons/chevron_next.svg" alt="Next" class="chevron-next">
+                </div>
+              </div>
+              <!-- Bottom Navigation Bar -->
+              <div class="bottom-nav">
+                <button class="nav-item active" data-nav="home">
+                  <img src="../assets/icons/house_active.svg" alt="Home">
+                </button>
+                <button class="nav-item" data-nav="history">
+                  <img src="../assets/icons/history_inactive.svg" alt="History">
+                </button>
+                <button class="nav-item" data-nav="profile">
+                  <img src="../assets/icons/user_inactive.svg" alt="Profile">
+                </button>
+              </div>
+              <div class="ios-home-indicator"><div class="indicator-bar"></div></div>
+            </section>
+
+            <!-- Screen 3: History Page (32:288) -->
+            <section class="screen-view" id="screen-history" data-node="32:288">
+              <div class="ios-status-bar dark-tint">
+                <span class="status-time">9:41</span>
+                <div class="status-icons">
+                  <img src="../assets/icons/ios_signal_dark.svg" alt="signal" class="status-icon">
+                  <img src="../assets/icons/ios_wifi_dark.svg" alt="wifi" class="status-icon">
+                  <img src="../assets/icons/ios_battery_dark.svg" alt="battery" class="status-battery">
+                </div>
+              </div>
+              <div class="page-header">
+                <div class="header-titles">
+                  <h2>History</h2>
+                </div>
+                <button class="icon-btn" id="history-ellipsis-btn">
+                  <img src="../assets/icons/ellipsis.svg" alt="Options">
+                </button>
+              </div>
+              <div class="screen-scrollable history-list">
+                <!-- History Item 1 -->
+                <div class="history-card">
+                  <div class="history-icon-circle mint-deep">
+                    <img src="../assets/icons/wave_white.svg" alt="Sign icon">
+                  </div>
+                  <div class="history-info">
+                    <span class="history-tag mint-tag">Sign Translation</span>
+                    <p class="history-text">Kamusta Ka?</p>
+                  </div>
+                  <span class="history-time">9:41 PM</span>
+                </div>
+
+                <!-- History Item 2 -->
+                <div class="history-card">
+                  <div class="history-icon-circle blue-deep">
+                    <img src="../assets/icons/spectrum_white.svg" alt="Speech icon">
+                  </div>
+                  <div class="history-info">
+                    <span class="history-tag blue-tag">Speech Translation</span>
+                    <p class="history-text">Hello, nice to meet you po</p>
+                  </div>
+                  <span class="history-time">9:40 PM</span>
+                </div>
+
+                <!-- History Item 3 -->
+                <div class="history-card">
+                  <div class="history-icon-circle mint-deep">
+                    <img src="../assets/icons/wave_white.svg" alt="Sign icon">
+                  </div>
+                  <div class="history-info">
+                    <span class="history-tag mint-tag">Sign Translation</span>
+                    <p class="history-text">Salamat po.</p>
+                  </div>
+                  <span class="history-time">9:11 PM</span>
+                </div>
+
+                <!-- History Item 4 -->
+                <div class="history-card">
+                  <div class="history-icon-circle blue-deep">
+                    <img src="../assets/icons/spectrum_white.svg" alt="Speech icon">
+                  </div>
+                  <div class="history-info">
+                    <span class="history-tag blue-tag">Speech Translation</span>
+                    <p class="history-text">Punta lang po kayo sa unang kanto.</p>
+                  </div>
+                  <span class="history-time">9:11 PM</span>
+                </div>
+
+                <!-- History Item 5 -->
+                <div class="history-card">
+                  <div class="history-icon-circle mint-deep">
+                    <img src="../assets/icons/wave_white.svg" alt="Sign icon">
+                  </div>
+                  <div class="history-info">
+                    <span class="history-tag mint-tag">Sign Translation</span>
+                    <p class="history-text">Saang kanto po ang karinderya?</p>
+                  </div>
+                  <span class="history-time">9:41 PM</span>
+                </div>
+              </div>
+              <div class="bottom-nav">
+                <button class="nav-item" data-nav="home">
+                  <img src="../assets/icons/house_inactive.svg" alt="Home">
+                </button>
+                <button class="nav-item active" data-nav="history">
+                  <img src="../assets/icons/history_active.svg" alt="History">
+                </button>
+                <button class="nav-item" data-nav="profile">
+                  <img src="../assets/icons/user_inactive.svg" alt="Profile">
+                </button>
+              </div>
+              <div class="ios-home-indicator"><div class="indicator-bar"></div></div>
+            </section>
+
+            <!-- Screen 4: Profile Page (37:917) -->
+            <section class="screen-view" id="screen-profile" data-node="37:917">
+              <div class="ios-status-bar dark-tint">
+                <span class="status-time">9:41</span>
+                <div class="status-icons">
+                  <img src="../assets/icons/ios_signal_dark.svg" alt="signal" class="status-icon">
+                  <img src="../assets/icons/ios_wifi_dark.svg" alt="wifi" class="status-icon">
+                  <img src="../assets/icons/ios_battery_dark.svg" alt="battery" class="status-battery">
+                </div>
+              </div>
+              <div class="page-header">
+                <div class="header-titles">
+                  <h2>Profile</h2>
+                </div>
+                <button class="icon-btn" id="profile-ellipsis-btn">
+                  <img src="../assets/icons/ellipsis.svg" alt="Options">
+                </button>
+              </div>
+              <div class="screen-scrollable">
+                <div class="profile-hero">
+                  <img src="../assets/images/senyas_logo.png" alt="Senyas Logo" class="profile-logo">
+                  <h3 class="profile-tagline">Sign. Speak. Understand.</h3>
+                </div>
+
+                <div class="settings-group">
+                  <div class="setting-row" id="profile-about-row">
+                    <div class="setting-icon-box">
+                      <img src="../assets/icons/about.svg" alt="About">
+                    </div>
+                    <div class="setting-text">
+                      <h5>About Senyas</h5>
+                      <p>Version 1.0.0 (Offline)</p>
+                    </div>
+                    <img src="../assets/icons/chevron_next_alt.svg" alt="Go" class="row-arrow">
+                  </div>
+                  <div class="setting-row" id="profile-model-row">
+                    <div class="setting-icon-box">
+                      <img src="../assets/icons/model_gear.svg" alt="Model">
+                    </div>
+                    <div class="setting-text">
+                      <h5>Model Info</h5>
+                      <p>Gemma 4 E28 + Whispher</p>
+                    </div>
+                    <img src="../assets/icons/chevron_next_alt.svg" alt="Go" class="row-arrow">
+                  </div>
+                  <div class="setting-row" id="profile-device-row">
+                    <div class="setting-icon-box">
+                      <img src="../assets/icons/device_phone.svg" alt="Device">
+                    </div>
+                    <div class="setting-text">
+                      <h5>Device</h5>
+                      <p>Cactus (Android)</p>
+                    </div>
+                    <img src="../assets/icons/chevron_next_alt.svg" alt="Go" class="row-arrow">
+                  </div>
+                  <div class="setting-row" id="profile-privacy-row">
+                    <div class="setting-icon-box">
+                      <img src="../assets/icons/privacy_padlock.svg" alt="Privacy">
+                    </div>
+                    <div class="setting-text">
+                      <h5>Privacy</h5>
+                      <p>Your data stays on your device</p>
+                    </div>
+                    <img src="../assets/icons/chevron_next_alt.svg" alt="Go" class="row-arrow">
+                  </div>
+                </div>
+              </div>
+              <div class="bottom-nav">
+                <button class="nav-item" data-nav="home">
+                  <img src="../assets/icons/house_inactive.svg" alt="Home">
+                </button>
+                <button class="nav-item" data-nav="history">
+                  <img src="../assets/icons/history_inactive.svg" alt="History">
+                </button>
+                <button class="nav-item active" data-nav="profile">
+                  <img src="../assets/icons/user_active.svg" alt="Profile">
+                </button>
+              </div>
+              <div class="ios-home-indicator"><div class="indicator-bar"></div></div>
+            </section>
+
+            <!-- Screen 5: Settings Page (36:705) -->
+            <section class="screen-view" id="screen-settings" data-node="36:705">
+              <div class="ios-status-bar dark-tint">
+                <span class="status-time">9:41</span>
+                <div class="status-icons">
+                  <img src="../assets/icons/ios_signal_dark.svg" alt="signal" class="status-icon">
+                  <img src="../assets/icons/ios_wifi_dark.svg" alt="wifi" class="status-icon">
+                  <img src="../assets/icons/ios_battery_dark.svg" alt="battery" class="status-battery">
+                </div>
+              </div>
+              <div class="sub-header">
+                <button class="back-btn" id="settings-back-btn">
+                  <img src="../assets/icons/arrow_back.svg" alt="Back">
+                </button>
+                <h2>Settings</h2>
+              </div>
+              <div class="screen-scrollable settings-body">
+                <div class="section-block">
+                  <h3 class="section-title">Model Management</h3>
+                  <p class="section-desc">Automatically loads and unloads models to save VRAM and keep performance fast.</p>
+                  <div class="setting-card">
+                    <img src="../assets/icons/ai_sparkle.svg" alt="AI Sparkle" class="card-icon">
+                    <div class="card-info">
+                      <h5>Whisper STT Model</h5>
+                      <p>Enable Whisper speech-to-text model management</p>
+                    </div>
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="toggle-whisper">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="section-block">
+                  <h3 class="section-title">Performance</h3>
+                  <p class="section-desc">Settings to optimize and enhance certain feature for lower-end devices</p>
+                  <div class="setting-card-group">
+                    <div class="setting-row-group">
+                      <img src="../assets/icons/speech_bubble.svg" alt="Speech" class="card-icon">
+                      <div class="card-info">
+                        <h5>Disable Thinking Mode</h5>
+                        <p>Lower Latency For Real Time Use</p>
+                      </div>
+                      <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-thinking">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <div class="group-divider"></div>
+                    <div class="setting-row-group">
+                      <img src="../assets/icons/gear_settings.svg" alt="Gear" class="card-icon">
+                      <div class="card-info">
+                        <h5>Optimize Performance</h5>
+                        <p>Balanced performance & Memory</p>
+                      </div>
+                      <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-optimize">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="bottom-nav">
+                <button class="nav-item active" data-nav="home">
+                  <img src="../assets/icons/house_active.svg" alt="Home">
+                </button>
+                <button class="nav-item" data-nav="history">
+                  <img src="../assets/icons/history_inactive.svg" alt="History">
+                </button>
+                <button class="nav-item" data-nav="profile">
+                  <img src="../assets/icons/user_inactive.svg" alt="Profile">
+                </button>
+              </div>
+              <div class="ios-home-indicator"><div class="indicator-bar"></div></div>
+            </section>
+
+            <!-- Screen 6: Speech Translation (32:471) -->
+            <section class="screen-view" id="screen-speech" data-node="32:471">
+              <div class="ios-status-bar dark-tint">
+                <span class="status-time">9:41</span>
+                <div class="status-icons">
+                  <img src="../assets/icons/ios_signal_dark.svg" alt="signal" class="status-icon">
+                  <img src="../assets/icons/ios_wifi_dark.svg" alt="wifi" class="status-icon">
+                  <img src="../assets/icons/ios_battery_dark.svg" alt="battery" class="status-battery">
+                </div>
+              </div>
+              <div class="sub-header">
+                <button class="back-btn" id="speech-back-btn">
+                  <img src="../assets/icons/arrow_back.svg" alt="Back">
+                </button>
+                <h2>Speech Translation</h2>
+              </div>
+              <div class="screen-scrollable speech-content">
+                <!-- Concentric Mic Animation Area -->
+                <div class="mic-concentric-wrap" id="mic-trigger">
+                  <div class="mic-ring outer-ring" id="mic-outer"></div>
+                  <div class="mic-ring middle-ring" id="mic-middle"></div>
+                  <div class="mic-circle" id="mic-inner">
+                    <img src="../assets/icons/mic_large.svg" alt="Mic Large">
+                  </div>
+                </div>
+
+                <h3 class="mic-status-label" id="mic-status-text">Tap to Speak</h3>
+                <p class="mic-status-desc">Speak in Filipino or English</p>
+
+                <!-- Translation Result 1 -->
+                <div class="speech-bubble-card">
+                  <div class="bubble-text">
+                    <h4>Hello, how are you today?</h4>
+                    <span class="bubble-tag">→ English</span>
+                  </div>
+                </div>
+
+                <!-- Translation Result 2 -->
+                <div class="speech-bubble-card">
+                  <div class="bubble-text">
+                    <h4>Ano ginagawa mo?</h4>
+                    <span class="bubble-tag">→ Filipino</span>
+                  </div>
+                  <img src="../assets/icons/chevron_next.svg" alt="Next" class="chevron-next">
+                </div>
+
+                <div class="down-indicator">∨</div>
+              </div>
+              <div class="ios-home-indicator"><div class="indicator-bar"></div></div>
+            </section>
+
+            <!-- Screen 7: Sign Translation (37:1111) -->
+            <section class="screen-view" id="screen-sign" data-node="37:1111">
+              <div class="ios-status-bar dark-tint">
+                <span class="status-time">9:41</span>
+                <div class="status-icons">
+                  <img src="../assets/icons/ios_signal_dark.svg" alt="signal" class="status-icon">
+                  <img src="../assets/icons/ios_wifi_dark.svg" alt="wifi" class="status-icon">
+                  <img src="../assets/icons/ios_battery_dark.svg" alt="battery" class="status-battery">
+                </div>
+              </div>
+              <div class="sub-header">
+                <button class="back-btn" id="sign-back-btn">
+                  <img src="../assets/icons/arrow_back.svg" alt="Back">
+                </button>
+                <h2>Sign Translation</h2>
+              </div>
+              <div class="screen-scrollable sign-content">
+                <!-- Camera Viewfinder -->
+                <div class="camera-viewport">
+                  <div class="reticle-corner top-left"></div>
+                  <div class="reticle-corner top-right"></div>
+                  <div class="reticle-corner bottom-left"></div>
+                  <div class="reticle-corner bottom-right"></div>
+
+                  <div class="camera-simulation" id="camera-simulation">
+                    <div class="hand-tracking-icon" id="hand-icon">🤟</div>
+                    <span class="camera-overlay-tag" id="hand-status-tag">Hand Tracking Active</span>
+                  </div>
+                </div>
+
+                <!-- Detecting status indicator -->
+                <div class="detecting-row">
+                  <div class="pulsing-ring" id="pulse-indicator">
+                    <div class="inner-dot"></div>
+                  </div>
+                  <span id="detecting-text">Detecting Sign...</span>
+                </div>
+
+                <!-- Recognized sign card -->
+                <div class="recognized-card">
+                  <div class="recognized-info">
+                    <h4>Kamusta ka?</h4>
+                    <p>(How are you?)</p>
+                  </div>
+                  <button class="speaker-btn" id="speaker-tts-btn" title="Speak translation">
+                    <img src="../assets/icons/speaker.svg" alt="Speaker">
+                  </button>
+                </div>
+
+                <!-- Big Stop Action Button -->
+                <div class="stop-action-wrap">
+                  <button class="circle-stop-btn" id="btn-toggle-sign-detection" title="Stop / Start Detection">
+                    <img src="../assets/icons/stop.svg" alt="Stop" id="stop-icon-img">
+                  </button>
+                </div>
+              </div>
+              <div class="ios-home-indicator"><div class="indicator-bar"></div></div>
+            </section>
+
+            <!-- Screen 8: Status Bar Standalone Component (32:412) -->
+            <section class="screen-view" id="screen-statusbar" data-node="32:412">
+              <div class="component-showcase">
+                <h3>Figma Node 32:412: Status Bar Component</h3>
+                <p>Standalone reusable iOS status bar widget with dynamic themes and pixel-perfect proportions.</p>
+
+                <div class="component-card">
+                  <h4>Primary Green Theme (#084131) - Node 32:412 Specification</h4>
+                  <div class="ios-status-bar intro-tint showcase-bar">
+                    <span class="status-time">9:41</span>
+                    <div class="status-icons">
+                      <img src="../assets/icons/ios_signal_green.svg" alt="signal" class="status-icon">
+                      <img src="../assets/icons/ios_wifi_green.svg" alt="wifi" class="status-icon">
+                      <img src="../assets/icons/ios_battery_green.svg" alt="battery" class="status-battery">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="component-card">
+                  <h4>Dark Neutral Theme (#30343B) - In-App Standard</h4>
+                  <div class="ios-status-bar dark-tint showcase-bar">
+                    <span class="status-time">9:41</span>
+                    <div class="status-icons">
+                      <img src="../assets/icons/ios_signal_dark.svg" alt="signal" class="status-icon">
+                      <img src="../assets/icons/ios_wifi_dark.svg" alt="wifi" class="status-icon">
+                      <img src="../assets/icons/ios_battery_dark.svg" alt="battery" class="status-battery">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="component-specs">
+                  <h5>Flutter Widget Implementation:</h5>
+                  <code>SenyasStatusBar(isDark: false, textColor: AppColors.primary)</code>
+                  <p class="spec-note">Supports SVG icons, custom time, and automatic brightness switching.</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Design & Code Inspection Panel -->
+      <aside class="inspector-panel">
+        <div class="inspector-header">
+          <div class="badge-row">
+            <span class="tag-figma">Figma Node: <strong id="inspect-node-id">57:1254</strong></span>
+            <span class="tag-flutter">Flutter Class: <strong id="inspect-flutter-class">IntroductionScreen</strong></span>
+          </div>
+          <h2 id="inspect-title">Introduction Screen</h2>
+          <p id="inspect-desc">Initial welcome screen with offline features breakdown and onboarding flow.</p>
+        </div>
+
+        <div class="inspector-tabs">
+          <button class="inspect-tab active" data-tab="tokens">Design Tokens</button>
+          <button class="inspect-tab" data-tab="code">Flutter Code</button>
+          <button class="inspect-tab" data-tab="flow">Interactions</button>
+        </div>
+
+        <div class="inspector-content">
+          <!-- Tokens Tab -->
+          <div class="tab-pane active" id="pane-tokens">
+            <div class="token-group">
+              <h4>Color Palette</h4>
+              <div class="palette-grid">
+                <div class="palette-swatch" style="background:#084131" title="Primary #084131"><span>#084131<br>Primary</span></div>
+                <div class="palette-swatch" style="background:#32D8B4; color:#084131" title="Accent #32D8B4"><span>#32D8B4<br>Accent Mint</span></div>
+                <div class="palette-swatch" style="background:#318DEF" title="Accent2 #318DEF"><span>#318DEF<br>Brand Blue</span></div>
+                <div class="palette-swatch" style="background:#50B09B" title="Accent/2 #50B09B"><span>#50B09B<br>Mint Dark</span></div>
+                <div class="palette-swatch" style="background:#B4F5E7; color:#084131" title="Accent/3 #B4F5E7"><span>#B4F5E7<br>Mint Soft</span></div>
+                <div class="palette-swatch" style="background:#C5E0FD; color:#143150" title="Accent2/6 #C5E0FD"><span>#C5E0FD<br>Blue Soft</span></div>
+                <div class="palette-swatch" style="background:#79A8DB; color:#143150" title="Accent2/4 #79A8DB"><span>#79A8DB<br>Blue Med</span></div>
+                <div class="palette-swatch" style="background:#143150" title="Accent2/1 #143150"><span>#143150<br>Deep Navy</span></div>
+              </div>
+            </div>
+
+            <div class="token-group">
+              <h4>Typography</h4>
+              <ul class="spec-list">
+                <li><strong>H1:</strong> Inter Bold 28px (Line Height 36px)</li>
+                <li><strong>H2:</strong> Inter Semi-Bold 22px (Line Height 28px)</li>
+                <li><strong>H3:</strong> Inter Semi-Bold 18px (Line Height 24px)</li>
+                <li><strong>Body:</strong> Inter Regular 14px (Line Height 20px)</li>
+                <li><strong>Label:</strong> Inter Semi-Bold 12px (Line Height 16px)</li>
+              </ul>
+            </div>
+
+            <div class="token-group">
+              <h4>Design File Links</h4>
+              <ul class="spec-list">
+                <li><a href="https://www.figma.com/design/aIVz9pli871Iiua4myPIUd/Senyas?node-id=57-1254&m=dev" target="_blank" rel="noreferrer">Introduction (57:1254) ↗</a></li>
+                <li><a href="https://www.figma.com/design/aIVz9pli871Iiua4myPIUd/Senyas?node-id=2-67&m=dev" target="_blank" rel="noreferrer">Front Page (2:67) ↗</a></li>
+                <li><a href="https://www.figma.com/design/aIVz9pli871Iiua4myPIUd/Senyas?node-id=32-288&m=dev" target="_blank" rel="noreferrer">History Page (32:288) ↗</a></li>
+                <li><a href="https://www.figma.com/design/aIVz9pli871Iiua4myPIUd/Senyas?node-id=37-917&m=dev" target="_blank" rel="noreferrer">Profile Page (37:917) ↗</a></li>
+                <li><a href="https://www.figma.com/design/aIVz9pli871Iiua4myPIUd/Senyas?node-id=36-705&m=dev" target="_blank" rel="noreferrer">Settings Page (36:705) ↗</a></li>
+                <li><a href="https://www.figma.com/design/aIVz9pli871Iiua4myPIUd/Senyas?node-id=32-471&m=dev" target="_blank" rel="noreferrer">Speech Translation (32:471) ↗</a></li>
+                <li><a href="https://www.figma.com/design/aIVz9pli871Iiua4myPIUd/Senyas?node-id=37-1111&m=dev" target="_blank" rel="noreferrer">Sign Translation (37:1111) ↗</a></li>
+                <li><a href="https://www.figma.com/design/aIVz9pli871Iiua4myPIUd/Senyas?node-id=32-412&m=dev" target="_blank" rel="noreferrer">Status Bar (32:412) ↗</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Code Tab -->
+          <div class="tab-pane" id="pane-code">
+            <pre><code id="code-snippet">// Flutter Code Snippet will appear here</code></pre>
+          </div>
+
+          <!-- Interactions Tab -->
+          <div class="tab-pane" id="pane-flow">
+            <div class="token-group">
+              <h4>Interactive Actions Available in this View:</h4>
+              <ul class="spec-list" id="interaction-list">
+                <li>Tap <strong>"Get Started"</strong> button to navigate directly to the Main Home Screen.</li>
+                <li>Click any tab in the top bar to switch instantly to another Figma design.</li>
+                <li>Full interactive state simulation: toggle switches, ripple mic, camera landmark simulation, and text-to-speech audio!</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
