@@ -69,9 +69,12 @@ window.SenyasBridge = (() => {
   SenyasEngine.on('router', d => cb('onRouter', d.next));
   SenyasEngine.on('log', e => cb('onLog', e.msg, e.kind));
 
+  function startManualRecord() { SenyasSign.startManualRecord && SenyasSign.startManualRecord(); }
+  function stopManualRecord() { SenyasSign.stopManualRecord && SenyasSign.stopManualRecord(); }
+
   return {
     bind, mountCamera, startSign, stopSign, setDetecting, setDemoMode,
-    commitGloss, manualFlush,
+    commitGloss, manualFlush, startManualRecord, stopManualRecord,
     startSpeech, stopSpeech, submitTyped, speak, routerState,
   };
 })();

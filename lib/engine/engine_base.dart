@@ -43,6 +43,10 @@ abstract class SenyasEngineApi {
   /// without a heuristic path.
   void setDemoMode(bool v) {}
 
+  /// Manual recording controls (hold/tap to sign without relying on auto-segmentation)
+  void startManualRecord() {}
+  void stopManualRecord() {}
+
   /// Commit a user-confirmed gloss into the live phrase buffer (used by
   /// prediction correction taps). Default: translate it as a 1-gloss phrase.
   void commitGloss(String gloss) => translateGlosses([gloss]);

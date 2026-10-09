@@ -15,9 +15,19 @@ class SimEngine extends SenyasEngineApi {
   final _tts = FlutterTts();
 
   static const _toGloss = {
-    'WAVE': 'KAMUSTA', 'OPEN_PALM': 'HELLO', 'THUMBS_UP': 'MAGANDA',
-    'THUMBS_DOWN': 'HINDI', 'INDEX_POINT': 'IKAW', 'PEACE': 'SALAMAT',
-    'FIST': 'TULONG',
+    'WAVE': 'KAMUSTA',
+    'B_HAND': 'SALAMAT',
+    'ILY': 'MAHAL_KITA',
+    'INDEX_POINT': 'IKAW',
+    'S_FIST': 'OO',
+    'NO_PINCH': 'HINDI',
+    'OPEN_5': 'SANDALI',
+    'V_HAND': 'DALAWA',
+    'OPEN_PALM': 'SANDALI',
+    'PEACE': 'SALAMAT',
+    'FIST': 'OO',
+    'THUMBS_UP': 'MAGANDA',
+    'THUMBS_DOWN': 'HINDI',
   };
 
   @override

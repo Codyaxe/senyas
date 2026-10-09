@@ -138,6 +138,12 @@ class WebEngine extends SenyasEngineApi {
   void flushPhrase() => _b.callMethod('manualFlush'.toJS);
 
   @override
+  void startManualRecord() => _b.callMethod('startManualRecord'.toJS);
+
+  @override
+  void stopManualRecord() => _b.callMethod('stopManualRecord'.toJS);
+
+  @override
   Future<void> startSpeech() async {
     unawaited(boot());
     globalContext['SenyasSpeechLang'] =

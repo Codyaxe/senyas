@@ -16,13 +16,14 @@ window.SenyasSign = (() => {
   // Segmentation / commit tuning
   const SAMPLE_MS = 1000 / 30;     // training sampled at 30 fps
   const PREROLL = 8;               // frames kept before motion starts
-  const MIN_FRAMES = 18;           // ~0.6 s
+  const MIN_FRAMES = 24;           // ~0.8 s minimum for a real sign
   const MAX_FRAMES = 90;           // ~3 s (FSL-105 clip length)
-  const END_NO_HAND = 8;           // ~0.27 s without hands ends a sign
-  const END_STILL = 8;             // ~0.27 s of holding still ends a sign
-  const MOTION_START = 0.012;      // wrist displacement / frame (normalized)
-  const MOTION_STILL = 0.008;      // relaxed stillness threshold to tolerate natural hand tremor
-  const COMMIT_PROB = 0.45;        // below this, ask the user to confirm
+  const END_NO_HAND = 10;          // ~0.33 s without hands ends a sign
+  const END_STILL = 16;            // ~0.53 s of holding still ends a sign
+  const MOTION_START = 0.022;      // deliberate wrist movement (ignores tremor)
+  const MOTION_STILL = 0.009;      // stillness threshold for sign completion
+  const COMMIT_PROB = 0.52;        // confident auto-commit threshold
+  const COOLDOWN_MS = 1200;        // 1.2s pause between signs to stop continuous loop
   const FLUSH_MS = 2500;           // idle time after last gloss -> translate phrase
 
   let video, canvas, ctx, holistic = null, stream = null, rafId = null;
@@ -31,14 +32,111 @@ window.SenyasSign = (() => {
 
   // segmentation state
   let state = 'idle';
+  let cooldownUntil = 0;
   const preroll = [];
-  let seg = [], noHand = 0, still = 0, lastWrists = null;
+  let seg = [], segHandshapes = [], noHand = 0, still = 0, lastWrists = null;
   let classifying = false;
 
   let phrase = [];
   let flushTimer = null;
 
   const cb = {}; // onStatus, onGloss, onPrediction, onPhrase, onToken, onResult, onFrame
+
+  // Handshape analyzer for disambiguation (e.g. THANK YOU vs ORANGE vs FISH)
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const ext = (lm, tip, pip) => dist(lm[tip], lm[0]) > dist(lm[pip], lm[0]) * 1.12;
+
+  function analyzeHandshape(lm) {
+    if (!lm || lm.length < 21) return null;
+    const thumb = dist(lm[4], lm[17]) > dist(lm[3], lm[17]) * 1.05;
+    const i = ext(lm, 8, 6), m = ext(lm, 12, 10), r = ext(lm, 16, 14), p = ext(lm, 20, 18);
+    const n = (i ? 1 : 0) + (m ? 1 : 0) + (r ? 1 : 0) + (p ? 1 : 0);
+
+    // 1. Flat B-hand (SALAMAT / THANK YOU): 4 fingers flat together
+    if (i && m && r && p) {
+      const together = dist(lm[8], lm[12]) < 0.085 && dist(lm[12], lm[16]) < 0.085;
+      return together ? 'FLAT_B' : 'OPEN_5';
+    }
+    // 2. ILY hand: thumb + index + pinky
+    if (thumb && i && !m && !r && p) return 'ILY';
+    // 3. Index point: 1 finger
+    if (i && !m && !r && !p) return 'INDEX_POINT';
+    // 4. V-hand: 2 fingers
+    if (i && m && !r && !p) return 'V_HAND';
+    // 5. N-pinch: tips meeting thumb
+    if (!r && !p && (dist(lm[8], lm[4]) < 0.12 || dist(lm[12], lm[4]) < 0.12)) return 'N_PINCH';
+    // 6. S-fist: closed fist
+    if (n === 0 && !thumb) return 'S_FIST';
+
+    return null;
+  }
+
+  function getDominantHandshape(shapes) {
+    if (!shapes || !shapes.length) return null;
+    const counts = {};
+    for (const s of shapes) if (s) counts[s] = (counts[s] || 0) + 1;
+    let best = null, max = 0;
+    for (const [k, v] of Object.entries(counts)) {
+      if (v > max) { max = v; best = k; }
+    }
+    return max >= 4 ? best : null;
+  }
+
+  function disambiguateCandidates(top, dominantHs) {
+    if (!top || !top.length) return top;
+    const candidates = top.slice();
+
+    // 1. Flat B-hand: In FSL, THANK YOU is signed with flat B-hand moving from chin outward.
+    // If model predicted ORANGE / FISH due to chin collision, promote THANK YOU.
+    if (dominantHs === 'FLAT_B') {
+      const thankIdx = candidates.findIndex(c => c.gloss.includes('THANK'));
+      if (thankIdx >= 0) {
+        const thank = candidates.splice(thankIdx, 1)[0];
+        thank.prob = Math.max(thank.prob * 2.2, 0.85);
+        candidates.unshift(thank);
+      } else if (candidates.some(c => c.gloss === 'ORANGE' || c.gloss === 'FISH')) {
+        candidates.unshift({ gloss: 'THANK YOU', cat: 'GREETING', prob: 0.84 });
+      }
+    } else if (dominantHs === 'ILY') {
+      candidates.unshift({ gloss: 'MAHAL KITA', cat: 'RELATIONSHIPS', prob: 0.90 });
+    } else if (dominantHs === 'S_FIST') {
+      const yesIdx = candidates.findIndex(c => c.gloss === 'YES');
+      if (yesIdx >= 0) {
+        const yes = candidates.splice(yesIdx, 1)[0];
+        yes.prob = Math.max(yes.prob * 2.0, 0.85);
+        candidates.unshift(yes);
+      } else {
+        candidates.unshift({ gloss: 'YES', cat: 'SURVIVAL', prob: 0.85 });
+      }
+    } else if (dominantHs === 'N_PINCH') {
+      const noIdx = candidates.findIndex(c => c.gloss === 'NO');
+      if (noIdx >= 0) {
+        const no = candidates.splice(noIdx, 1)[0];
+        no.prob = Math.max(no.prob * 2.0, 0.85);
+        candidates.unshift(no);
+      } else {
+        candidates.unshift({ gloss: 'NO', cat: 'SURVIVAL', prob: 0.85 });
+      }
+    } else if (dominantHs === 'INDEX_POINT') {
+      const targetIdx = candidates.findIndex(c => c.gloss === 'HOW ARE YOU' || c.gloss === 'ONE');
+      if (targetIdx >= 0) {
+        const target = candidates.splice(targetIdx, 1)[0];
+        target.prob = Math.max(target.prob * 1.8, 0.80);
+        candidates.unshift(target);
+      }
+    } else if (dominantHs === 'V_HAND') {
+      const twoIdx = candidates.findIndex(c => c.gloss === 'TWO');
+      if (twoIdx >= 0) {
+        const two = candidates.splice(twoIdx, 1)[0];
+        two.prob = Math.max(two.prob * 2.0, 0.85);
+        candidates.unshift(two);
+      } else {
+        candidates.unshift({ gloss: 'TWO', cat: 'NUMBER', prob: 0.85 });
+      }
+    }
+
+    return candidates.slice(0, 5);
+  }
 
   async function init() {
     if (holistic && FSL.isLoaded()) return true;
@@ -101,7 +199,32 @@ window.SenyasSign = (() => {
   function setDetecting(v) { detecting = v; if (!v) resetSegment(); }
   function setDemoMode(v) { demoMode = !!v; }
 
-  function resetSegment() { state = 'idle'; seg = []; noHand = 0; still = 0; preroll.length = 0; }
+  function resetSegment() { state = 'idle'; seg = []; segHandshapes = []; noHand = 0; still = 0; preroll.length = 0; }
+
+  function startManualRecord() {
+    if (classifying) return;
+    state = 'recording';
+    seg = [];
+    segHandshapes = [];
+    noHand = 0;
+    still = 0;
+    clearTimeout(flushTimer);
+    cb.onStatus && cb.onStatus('signing', 'Recording sign…');
+  }
+
+  function stopManualRecord() {
+    if (state !== 'recording') return;
+    const frames = seg;
+    const dominantHs = getDominantHandshape(segHandshapes);
+    resetSegment();
+    cooldownUntil = performance.now() + COOLDOWN_MS;
+    state = 'cooldown';
+    if (frames.length >= 15) {
+      recognize(frames, 'manual_stop', dominantHs);
+    } else {
+      cb.onStatus && cb.onStatus('hand', 'Recording too short');
+    }
+  }
 
   // ---------- drawing ----------
   function drawLms(lms, conns, color, r) {
@@ -128,10 +251,35 @@ window.SenyasSign = (() => {
         const p = face[i]; if (p) { ctx.beginPath(); ctx.arc(p.x * canvas.width, p.y * canvas.height, 1.5, 0, 6.3); ctx.fill(); }
       }
     }
+
+    // Status pill badge at top center
+    ctx.save();
+    let badgeText = '', badgeColor = '', badgeBg = 'rgba(15, 23, 42, 0.88)';
     if (state === 'recording') {
-      ctx.fillStyle = '#E5484D';
-      ctx.beginPath(); ctx.arc(canvas.width - 22, 22, 8, 0, 6.3); ctx.fill();
+      badgeText = `● SIGNING (${(seg.length / 30).toFixed(1)}s)`;
+      badgeColor = '#EF4444';
+    } else if (state === 'cooldown') {
+      badgeText = '⏸ PAUSE';
+      badgeColor = '#F59E0B';
+    } else if (state === 'idle') {
+      badgeText = 'READY TO SIGN';
+      badgeColor = '#32D8B4';
     }
+    if (badgeText) {
+      ctx.font = 'bold 14px Inter, -apple-system, sans-serif';
+      const w = ctx.measureText(badgeText).width + 24;
+      const x = (canvas.width - w) / 2;
+      ctx.fillStyle = badgeBg;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, 14, w, 28, 14); else ctx.rect(x, 14, w, 28);
+      ctx.fill();
+      ctx.strokeStyle = badgeColor;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = badgeColor;
+      ctx.fillText(badgeText, x + 12, 33);
+    }
+    ctx.restore();
   }
 
   // ---------- main loop ----------
@@ -151,6 +299,7 @@ window.SenyasSign = (() => {
     const frame = FSL.frameVector(res, video.videoWidth, video.videoHeight);
     const lh = res.leftHandLandmarks?.[0], rh = res.rightHandLandmarks?.[0];
     const hands = !!(lh || rh);
+    const activeHand = rh || lh;
     const wrists = [lh?.[0], rh?.[0]];
     let motion = 0;
     if (lastWrists) {
@@ -166,42 +315,68 @@ window.SenyasSign = (() => {
 
     if (demoMode && hands) demoHandshape(lh || rh, now);
 
+    // Cooldown state
+    if (state === 'cooldown') {
+      if (now < cooldownUntil) {
+        cb.onStatus && cb.onStatus('hand', `Sign captured (${Math.ceil((cooldownUntil - now)/1000)}s pause)`);
+        return;
+      }
+      state = 'idle';
+      seg = [];
+      segHandshapes = [];
+      preroll.length = 0;
+      noHand = 0;
+      still = 0;
+    }
+
     if (state === 'idle') {
       preroll.push(frame);
       if (preroll.length > PREROLL) preroll.shift();
       if (hands && motion > MOTION_START && !classifying) {
-        state = 'recording'; seg = preroll.slice(); preroll.length = 0; noHand = 0; still = 0;
+        state = 'recording';
+        seg = preroll.slice();
+        segHandshapes = [];
+        preroll.length = 0;
+        noHand = 0;
+        still = 0;
         clearTimeout(flushTimer);
-        cb.onStatus && cb.onStatus('signing', 'Signing…');
+        cb.onStatus && cb.onStatus('signing', 'Signing… (hold steady at end)');
       } else {
         cb.onStatus && cb.onStatus(hands ? 'hand' : 'no-hand',
-          hands ? 'Hands detected' : 'Show your hands');
+          hands ? 'Ready — sign when ready' : 'Show your hands');
       }
       return;
     }
 
-    // recording
+    // recording state
     seg.push(frame);
+    if (activeHand) {
+      const hs = analyzeHandshape(activeHand);
+      if (hs) segHandshapes.push(hs);
+    }
     noHand = hands ? 0 : noHand + 1;
     still = hands && motion < MOTION_STILL ? still + 1 : 0;
-    if (seg.length % 12 === 0) {
+    if (seg.length % 10 === 0) {
       cb.onStatus && cb.onStatus('signing', `Signing… (${seg.length} frames)`);
     }
     const endReason = noHand >= END_NO_HAND ? 'hand_dropped'
-      : (seg.length >= 20 && still >= END_STILL) ? 'stillness'
+      : (seg.length >= 24 && still >= END_STILL) ? 'stillness'
       : seg.length >= MAX_FRAMES ? 'max_frames' : null;
     const done = !!endReason;
     if (done) {
       const frames = seg;
+      const dominantHs = getDominantHandshape(segHandshapes);
       resetSegment();
+      cooldownUntil = now + COOLDOWN_MS;
+      state = 'cooldown';
       if (frames.length >= MIN_FRAMES) {
-        recognize(frames, endReason);
+        recognize(frames, endReason, dominantHs);
       } else {
         const durSec = (frames.length / 30).toFixed(2);
-        cb.onStatus && cb.onStatus('hand', `Too short (${frames.length} frames, ${durSec}s) — need ≥ 18 frames`);
+        cb.onStatus && cb.onStatus('hand', `Too short (${frames.length} frames, ${durSec}s) — need ≥ 24 frames`);
         cb.onPrediction && cb.onPrediction([], 0, frames.length, false, JSON.stringify({
           reason: 'too_short',
-          detail: `Sign lasted only ${frames.length} frames (${durSec}s). Minimum is 18 frames (~0.6s). Please sign a bit slower or hold longer.`,
+          detail: `Sign lasted only ${frames.length} frames (${durSec}s). Hold sign a moment longer (~0.8s+).`,
           endReason,
           frames: frames.length,
         }));
@@ -209,31 +384,33 @@ window.SenyasSign = (() => {
     }
   }
 
-  async function recognize(frames, endReason) {
+  async function recognize(frames, endReason, dominantHs) {
     classifying = true;
     cb.onStatus && cb.onStatus('classifying', 'Recognizing…');
     try {
-      const r = await FSL.classify(frames, 5);
-      const best = r.top[0];
+      const r = await FSL.classify(frames, 8);
+      const top = disambiguateCandidates(r.top, dominantHs);
+      const best = top[0];
       const committed = best.prob >= COMMIT_PROB;
       const pct = Math.round(best.prob * 100);
       let reason = committed ? 'committed' : 'low_confidence';
       let detail = '';
       if (!committed) {
-        const runnerUps = r.top.slice(1, 4).map(t => `${t.gloss} (${Math.round(t.prob * 100)}%)`).join(', ');
+        const runnerUps = top.slice(1, 4).map(t => `${t.gloss} (${Math.round(t.prob * 100)}%)`).join(', ');
         detail = `Top candidate '${best.gloss}' reached only ${pct}% (below ${Math.round(COMMIT_PROB * 100)}% auto-commit threshold). Contenders: ${runnerUps}.`;
       } else {
-        detail = `Recognized '${best.gloss}' at ${pct}% confidence (${r.frames} frames, ${r.ms}ms).`;
+        detail = `Recognized '${best.gloss}' at ${pct}% confidence (${r.frames} frames, ${r.ms}ms, handshape: ${dominantHs || 'dynamic'}).`;
       }
       const meta = {
         reason,
         detail,
         endReason: endReason || 'unknown',
+        handshape: dominantHs || 'dynamic',
         frames: r.frames,
         ms: r.ms,
         threshold: COMMIT_PROB,
       };
-      cb.onPrediction && cb.onPrediction(r.top, r.ms, r.frames, committed, JSON.stringify(meta));
+      cb.onPrediction && cb.onPrediction(top, r.ms, r.frames, committed, JSON.stringify(meta));
       if (committed) addGloss(best.gloss);
       cb.onStatus && cb.onStatus('ready', committed
         ? `${best.gloss} (${pct}%)`
@@ -270,30 +447,27 @@ window.SenyasSign = (() => {
 
   function manualFlush() { flushPhrase(); }
 
-  // ---------- optional demo mode: 7 static handshapes (heuristic) ----------
+  // ---------- optional demo mode: authentic FSL handshapes ----------
   let demoPending = null, demoSince = 0, demoLast = null, demoLastAt = 0;
-  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-  const ext = (lm, tip, pip) => dist(lm[tip], lm[0]) > dist(lm[pip], lm[0]) * 1.12;
-  function handshape(lm) {
-    const thumb = dist(lm[4], lm[17]) > dist(lm[3], lm[17]) * 1.05;
-    const i = ext(lm, 8, 6), m = ext(lm, 12, 10), r = ext(lm, 16, 14), p = ext(lm, 20, 18);
-    const n = i + m + r + p;
-    if (thumb && n === 0) return lm[4].y < lm[2].y - 0.02 ? 'MAGANDA' : lm[4].y > lm[2].y + 0.02 ? 'HINDI' : null;
-    if (n === 4 && thumb) return 'HELLO';
-    if (n === 0 && !thumb) return 'TULONG';
-    if (i && !m && !r && !p) return 'IKAW';
-    if (i && m && !r && !p) return 'SALAMAT';
-    return null;
-  }
   function demoHandshape(lm, now) {
-    const g = handshape(lm);
-    if (!g || state === 'recording') { demoPending = null; return; }
-    if (g !== demoPending) { demoPending = g; demoSince = now; return; }
-    if (now - demoSince > 600 && !(g === demoLast && now - demoLastAt < 1500)) {
-      demoLast = g; demoLastAt = now; addGloss(g);
+    const g = analyzeHandshape(lm);
+    let mapped = null;
+    if (g === 'FLAT_B') mapped = 'SALAMAT';
+    else if (g === 'ILY') mapped = 'MAHAL_KITA';
+    else if (g === 'INDEX_POINT') mapped = 'IKAW';
+    else if (g === 'S_FIST') mapped = 'OO';
+    else if (g === 'N_PINCH') mapped = 'HINDI';
+    else if (g === 'V_HAND') mapped = 'DALAWA';
+    else if (g === 'OPEN_5') mapped = 'SANDALI';
+
+    if (!mapped || state === 'recording') { demoPending = null; return; }
+    if (mapped !== demoPending) { demoPending = mapped; demoSince = now; return; }
+    if (now - demoSince > 600 && !(mapped === demoLast && now - demoLastAt < 1500)) {
+      demoLast = mapped; demoLastAt = now; addGloss(mapped);
     }
   }
 
-  return { init, start, stop, setDetecting, setDemoMode, manualFlush, addGloss, cb,
+  return { init, start, stop, setDetecting, setDemoMode, manualFlush, addGloss,
+    startManualRecord, stopManualRecord, cb,
     get phraseGlosses() { return phrase; } };
 })();
