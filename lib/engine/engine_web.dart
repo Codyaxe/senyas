@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:ui_web' as ui_web;
 import 'package:web/web.dart' as web;
+import '../features/sign/demo_mode.dart';
 import '../features/inference/pipeline.dart';
 import 'engine_base.dart';
 import 'engine_events.dart';
@@ -46,6 +48,23 @@ class WebEngine extends SenyasEngineApi {
       unawaited(translateGlosses(
           seq.toDart.map((e) => (e as JSString).toDart).toList()));
     }).toJS;
+    h['onPrediction'] =
+        ((JSString topJson, JSNumber ms, JSNumber frames, JSBoolean committed, JSString metaJson) {
+      Map<String, dynamic> meta = {};
+      try {
+        final decoded = jsonDecode(metaJson.toDart);
+        if (decoded is Map) {
+          meta = Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {}
+      emit(EngineEvent.prediction, {
+        'top': jsonDecode(topJson.toDart),
+        'ms': ms.toDartDouble.round(),
+        'frames': frames.toDartDouble.round(),
+        'committed': committed.toDart,
+        'meta': meta,
+      });
+    }).toJS;
     // Chrome's Web Speech API streams audio to Google — NOT offline. Labeled.
     h['onTranscript'] = ((JSString t) {
       unawaited(simplifyAndEmit(t.toDart,
@@ -88,6 +107,7 @@ class WebEngine extends SenyasEngineApi {
   @override
   Future<void> enterSignMode() async {
     ensureCameraViewRegistered();
+    setDemoMode(SenyasSettings.demoMode.value);
     unawaited(boot()); // load Gemma 4 in parallel with the camera
     // Camera mounts when the HtmlElementView is built; retry briefly.
     for (var i = 0; i < 20; i++) {
@@ -105,6 +125,14 @@ class WebEngine extends SenyasEngineApi {
   @override
   void setDetecting(bool v) =>
       _b.callMethod('setDetecting'.toJS, v.toJS);
+
+  @override
+  void setDemoMode(bool v) =>
+      _b.callMethod('setDemoMode'.toJS, v.toJS);
+
+  @override
+  void commitGloss(String gloss) =>
+      _b.callMethod('commitGloss'.toJS, gloss.toJS);
 
   @override
   void flushPhrase() => _b.callMethod('manualFlush'.toJS);

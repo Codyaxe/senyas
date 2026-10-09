@@ -38,6 +38,14 @@ abstract class SenyasEngineApi {
   Future<void> exitSignMode();
   void setDetecting(bool v);
   void flushPhrase();
+
+  /// Demo mode (7-handshape heuristic + cheat sheet). No-op on backends
+  /// without a heuristic path.
+  void setDemoMode(bool v) {}
+
+  /// Commit a user-confirmed gloss into the live phrase buffer (used by
+  /// prediction correction taps). Default: translate it as a 1-gloss phrase.
+  void commitGloss(String gloss) => translateGlosses([gloss]);
   Future<void> startSpeech();
   Future<void> stopSpeech();
   void submitTyped(String text);

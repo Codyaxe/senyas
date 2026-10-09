@@ -9,6 +9,7 @@ class EngineEvent {
   static const log = 'log';             // {msg, kind}
   static const status = 'status';       // {status, label}
   static const gloss = 'gloss';         // {gloss, phrase:[...]}
+  static const prediction = 'prediction'; // {top:[{gloss,prob,cat}], ms, frames, committed}
   static const token = 'token';         // {ch} sign-flow streamed token
   static const signResult = 'signResult';   // {sentence, glosses, source, warning?}
   static const speechState = 'speechState'; // {state: listening|transcribing|idle|fallback|mic-denied|error}

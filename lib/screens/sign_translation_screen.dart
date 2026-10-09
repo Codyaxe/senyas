@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_assets.dart';
 import '../constants/app_text_styles.dart';
@@ -11,6 +12,7 @@ import '../engine/engine.dart';
 import '../engine/camera_view_stub.dart'
     if (dart.library.js_interop) '../engine/camera_view_web.dart';
 import '../models/translation_history.dart';
+import '../features/sign/demo_mode.dart';
 import '../features/sign/gloss_vocab.dart';
 import '../features/inference/pipeline.dart';
 import '../features/debug/metrics_sheet.dart';
@@ -37,6 +39,13 @@ class _SignTranslationScreenState extends State<SignTranslationScreen>
   String? _sourceLabel; // which engine produced the text
   String? _error;
   final List<String> _manual = []; // tap-to-select gloss fallback
+
+  /// Last recognizer prediction: top-5 glosses + confidence for correction & diagnostics.
+  List<Map<String, dynamic>> _lastTop = const [];
+  bool _lastCommitted = true;
+  int? _lastMs;
+  Map<String, dynamic>? _lastMeta;
+  bool _showDiagnostics = true;
 
   static const _demoGestures = <String, String>{
     'WAVE': '👋', 'OPEN_PALM': '✋', 'THUMBS_UP': '👍',
@@ -68,7 +77,18 @@ class _SignTranslationScreenState extends State<SignTranslationScreen>
             _recognized = ''; // phrase flushed — rewrite streaming next
           } else {
             _recognizedSub = '';
+            _lastTop = const []; // committed — clear correction row
           }
+          break;
+        case EngineEvent.prediction:
+          _lastTop = (e.data['top'] as List)
+              .map((t) => Map<String, dynamic>.from(t as Map))
+              .toList();
+          _lastCommitted = e.data['committed'] as bool;
+          _lastMs = (e.data['ms'] as num?)?.round();
+          _lastMeta = e.data['meta'] is Map
+              ? Map<String, dynamic>.from(e.data['meta'] as Map)
+              : null;
           break;
         case EngineEvent.token:
           if (_sourceLabel != null) {
@@ -293,6 +313,17 @@ class _SignTranslationScreenState extends State<SignTranslationScreen>
                         ),
                       ),
 
+                    // Recognition diagnostics card & candidate correction
+                    _buildDiagnosticCard(),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        SenyasSettings.recognitionScope,
+                        style: AppTextStyles.label(
+                            color: AppColors.textSecondary),
+                      ),
+                    ),
+
                     const SizedBox(height: 14),
 
                     // Model status / errors (visual only — deaf-first)
@@ -443,29 +474,42 @@ class _SignTranslationScreenState extends State<SignTranslationScreen>
                       ),
                     ]),
                     const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6, runSpacing: 6,
-                      children: GlossVocab.all
-                          .map((g) => ActionChip(
-                                label: Text(
-                                    g.liveHint != null
-                                        ? '${g.liveHint!.split(' ').first} ${g.id}'
-                                        : g.id,
-                                    style: const TextStyle(fontSize: 12)),
-                                tooltip: '${g.fil} — ${g.en}',
-                                visualDensity: VisualDensity.compact,
-                                onPressed: _manual.length >= 6
-                                    ? null
-                                    : () => setState(() => _manual.add(g.id)),
-                              ))
-                          .toList(),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        'Live camera recognizes only the 7 glosses marked with a handshape. '
-                        'This is a fixed demo vocabulary, not full FSL recognition.',
-                        style: AppTextStyles.label(color: AppColors.textSecondary),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: SenyasSettings.demoMode,
+                      builder: (_, demo, __) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 6, runSpacing: 6,
+                            children: GlossVocab.all
+                                .map((g) => ActionChip(
+                                      label: Text(
+                                          demo && g.liveHint != null
+                                              ? '${g.liveHint!.split(' ').first} ${g.id}'
+                                              : g.id,
+                                          style: const TextStyle(fontSize: 12)),
+                                      tooltip: '${g.fil} — ${g.en}',
+                                      visualDensity: VisualDensity.compact,
+                                      onPressed: _manual.length >= 6
+                                          ? null
+                                          : () => setState(
+                                              () => _manual.add(g.id)),
+                                    ))
+                                .toList(),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              demo
+                                  ? 'Demo mode: the camera also accepts the 7 static '
+                                      'handshapes marked above — a heuristic demo aid, '
+                                      'not part of the FSL-105 recognizer.'
+                                  : 'Manual input — taps bypass the camera recognizer.',
+                              style: AppTextStyles.label(
+                                  color: AppColors.textSecondary),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     Align(
@@ -520,6 +564,327 @@ class _SignTranslationScreenState extends State<SignTranslationScreen>
             const SenyasHomeIndicator(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDiagnosticCard() {
+    final meta = _lastMeta;
+    final top = _lastTop;
+    final reason = meta?['reason'] as String?;
+    final isError = reason == 'error';
+    final isTooShort = reason == 'too_short';
+    final hasData = top.isNotEmpty || isTooShort || isError;
+    if (!hasData) return const SizedBox.shrink();
+
+    final best = top.isNotEmpty ? top.first : null;
+    final bestProb = best != null ? (best['prob'] as num).toDouble() : 0.0;
+    final bestPct = (bestProb * 100).round();
+    final endReason = meta?['endReason'] as String? ?? 'unknown';
+    final frames = (meta?['frames'] as num?)?.round() ?? 0;
+
+    final topGlosses =
+        top.map((t) => (t['gloss'] as String).toUpperCase()).toList();
+    final hasChinOverlap = topGlosses.any((g) =>
+        g.contains('ORANGE') || g.contains('FISH') || g.contains('THANK'));
+
+    Color badgeBg;
+    Color badgeText;
+    String badgeLabel;
+    IconData badgeIcon;
+
+    if (isError) {
+      badgeBg = const Color(0xFFFDE8E8);
+      badgeText = const Color(0xFF9B1C1C);
+      badgeLabel = 'Inference Error';
+      badgeIcon = Icons.error_outline;
+    } else if (isTooShort) {
+      badgeBg = const Color(0xFFFFF3CD);
+      badgeText = const Color(0xFF856404);
+      badgeLabel = 'Sign Too Short (< 0.6s)';
+      badgeIcon = Icons.timer_outlined;
+    } else if (!_lastCommitted) {
+      badgeBg = const Color(0xFFFDE8E8);
+      badgeText = const Color(0xFF9B1C1C);
+      badgeLabel = 'Uncertain Match ($bestPct% < 45% threshold)';
+      badgeIcon = Icons.warning_amber_rounded;
+    } else {
+      badgeBg = const Color(0xFFDEF7EC);
+      badgeText = const Color(0xFF03543F);
+      badgeLabel = 'Recognized ($bestPct% confidence)';
+      badgeIcon = Icons.check_circle_outline;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: !_lastCommitted || isTooShort || isError
+              ? const Color(0xFFF3C7C7)
+              : const Color(0xFFD1E7DD),
+          width: 1.5,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(badgeIcon, size: 14, color: badgeText),
+                    const SizedBox(width: 5),
+                    Text(
+                      badgeLabel,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: badgeText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: () => setState(() => _showDiagnostics = !_showDiagnostics),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _showDiagnostics ? 'Hide details' : 'Show details',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.accent2,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Icon(
+                        _showDiagnostics
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        size: 16,
+                        color: AppColors.accent2,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_showDiagnostics) ...[
+            const SizedBox(height: 10),
+            if (isError)
+              Text(
+                '• Cause: ${meta?['detail'] ?? 'Model failed during classification'}\n'
+                '• Tip: If onnxruntime-web fails on this browser, enable Demo Mode in Settings for rock-solid heuristic recognition.',
+                style: GoogleFonts.inter(
+                    fontSize: 12, height: 1.4, color: const Color(0xFF9B1C1C)),
+              )
+            else if (isTooShort)
+              Text(
+                '• Cause: Sign lasted only $frames frames (~${(frames / 30).toStringAsFixed(1)}s).\n'
+                '• Solution: FSL-105 requires at least 18 frames (~0.6s) to capture hand trajectory. Please sign at normal speed.',
+                style: GoogleFonts.inter(
+                    fontSize: 12, height: 1.4, color: const Color(0xFF4B5563)),
+              )
+            else if (!_lastCommitted)
+              Text(
+                '• Cause: Top pick (${best?['gloss']}) scored $bestPct%, below the 45% threshold to auto-commit.\n'
+                '• Action: Tap your intended sign below to confirm it:',
+                style: GoogleFonts.inter(
+                    fontSize: 12, height: 1.4, color: const Color(0xFF4B5563)),
+              )
+            else
+              Text(
+                '• Cause: Model matched with confident probability ($bestPct%).\n'
+                '• Telemetry: $frames frames analyzed in ${_lastMs ?? 0}ms.',
+                style: GoogleFonts.inter(
+                    fontSize: 12, height: 1.4, color: const Color(0xFF4B5563)),
+              ),
+            if (top.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Model Predictions (Top ${top.length}):',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textDark,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 6),
+              ...top.take(4).map((t) {
+                final gloss = t['gloss'] as String;
+                final prob = (t['prob'] as num).toDouble();
+                final pct = (prob * 100).round();
+                final cat = t['cat'] as String? ?? '';
+                final isTopPick = t == top.first;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: InkWell(
+                    onTap: () => senyas.commitGloss(gloss),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isTopPick
+                            ? const Color(0xFFF9FAFB)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isTopPick
+                              ? const Color(0xFFE5E7EB)
+                              : Colors.transparent,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      gloss,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: isTopPick
+                                            ? FontWeight.w700
+                                            : FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    if (cat.isNotEmpty) ...[
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '· $cat',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: prob.clamp(0.0, 1.0),
+                                    minHeight: 5,
+                                    backgroundColor: const Color(0xFFE5E7EB),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      prob >= 0.45
+                                          ? AppColors.accentGreenDark
+                                          : (prob >= 0.25
+                                              ? const Color(0xFFF59E0B)
+                                              : const Color(0xFF9CA3AF)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            '$pct%',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: isTopPick
+                                  ? AppColors.textPrimary
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.tonal(
+                            onPressed: () => senyas.commitGloss(gloss),
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 0),
+                              visualDensity: VisualDensity.compact,
+                              backgroundColor: AppColors.accentGreenSoft,
+                              foregroundColor: AppColors.primary,
+                            ),
+                            child: const Text('Select',
+                                style: TextStyle(fontSize: 11)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+            if (hasChinOverlap) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.lightbulb_outline,
+                        size: 16, color: Color(0xFF15803D)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '💡 Chin Overlap Alert: THANK YOU, ORANGE, and FISH all have landmarks around the chin.\n'
+                        '👉 To sign THANK YOU: Touch flat fingers to chin/lips, push outward forward away from face, then pause or drop hand.',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          height: 1.35,
+                          color: const Color(0xFF166534),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  'Trigger: $endReason · Frames: $frames · Model: ONNX WASM',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

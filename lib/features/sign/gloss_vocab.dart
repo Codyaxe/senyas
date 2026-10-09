@@ -1,6 +1,9 @@
-/// Demo vocabulary (21 glosses). 16 come from the Transactional FSL Dataset
-/// classes (Mendeley jdyrr7cm4z v2, CC BY 4.0); the rest are basics used by the
-/// live handshape demo. This is a fixed vocabulary — NOT general FSL recognition.
+import 'fsl105_vocab.dart';
+
+/// Gloss vocabulary accepted by the router:
+///  * FSL-105 (105 signs) — what the live SignTransformer recognizer outputs
+///  * 21 demo/transactional glosses — tap-to-select chips and the optional
+///    handshape demo mode (16 are Transactional FSL Dataset classes).
 class Gloss {
   final String id; // canonical gloss passed to Gemma
   final String fil; // literal Filipino meaning (also rule-based fallback)
@@ -34,13 +37,24 @@ class GlossVocab {
     Gloss('DISKWENTO', 'diskwento', 'discount'),
   ];
 
-  static final byId = {for (final g in all) g.id: g};
+  /// FSL-105 recognizer outputs (English glosses; the rule fallback shows them as-is).
+  static final fsl105 = [
+    for (final (id, display, cat) in fsl105Glosses) Gloss(id, display, '$display ($cat)'),
+  ];
+
+  static final byId = {
+    for (final g in fsl105) g.id: g,
+    for (final g in all) g.id: g,
+  };
+
+  static String idOf(String raw) =>
+      raw.trim().toUpperCase().replaceAll('\u2019', "'").replaceAll(' ', '_');
 
   /// Keep only known glosses, uppercase, collapse immediate repeats, cap at 6.
   static List<String> normalize(Iterable<String> raw) {
     final out = <String>[];
     for (final r in raw) {
-      final id = r.trim().toUpperCase().replaceAll(' ', '_');
+      final id = idOf(r);
       if (!byId.containsKey(id)) continue;
       if (out.isNotEmpty && out.last == id) continue;
       out.add(id);

@@ -8,6 +8,8 @@ import '../widgets/senyas_header.dart';
 import '../widgets/senyas_bottom_nav.dart';
 import '../widgets/senyas_home_indicator.dart';
 import '../widgets/custom_toggle_switch.dart';
+import '../engine/engine.dart';
+import '../features/sign/demo_mode.dart';
 
 /// Implementation of Figma Node 36:705 - Settings Page
 class SettingsScreen extends StatefulWidget {
@@ -210,6 +212,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   value: _optimizePerformance,
                                   onChanged: (val) {
                                     setState(() => _optimizePerformance = val);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Divider Line
+                          const Divider(
+                              height: 1, indent: 16, endIndent: 16, color: AppColors.divider),
+
+                          // Row 3: Demo Mode
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.back_hand_outlined,
+                                    size: 28, color: AppColors.textSecondary),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Demo Mode',
+                                        style: AppTextStyles.semiBold16(),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Show 7-handshape cheat sheet + heuristic gestures (off = FSL-105 recognizer only)',
+                                        style: AppTextStyles.caption(
+                                            color: AppColors.textSecondary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                CustomToggleSwitch(
+                                  value: SenyasSettings.demoMode.value,
+                                  onChanged: (val) {
+                                    SenyasSettings.demoMode.value = val;
+                                    senyas.setDemoMode(val);
+                                    setState(() {});
                                   },
                                 ),
                               ],

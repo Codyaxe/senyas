@@ -38,6 +38,8 @@ window.SenyasBridge = (() => {
   }
   function stopSign() { SenyasSign.stop(); }
   function setDetecting(v) { SenyasSign.setDetecting(v); }
+  function setDemoMode(v) { SenyasSign.setDemoMode(v); }
+  function commitGloss(g) { SenyasSign.addGloss(g); }
   function manualFlush() { SenyasSign.manualFlush(); }
 
   function startSpeech() { return SenyasSpeech.start(); }
@@ -56,6 +58,8 @@ window.SenyasBridge = (() => {
   SenyasSign.cb.onToken = ch => cb('onToken', ch);
   SenyasSign.cb.onResult = (s, seq) => cb('onSignResult', s, seq || []);
   SenyasSign.cb.onPhrase = seq => cb('onPhrase', seq || []);
+  SenyasSign.cb.onPrediction = (top, ms, frames, committed, metaJson) =>
+    cb('onPrediction', JSON.stringify(top), ms, frames, !!committed, metaJson || '{}');
   SenyasSpeech.cb.onTranscript = t => cb('onTranscript', t);
 
   SenyasSpeech.cb.onState = s => cb('onSpeechState', s);
@@ -66,7 +70,8 @@ window.SenyasBridge = (() => {
   SenyasEngine.on('log', e => cb('onLog', e.msg, e.kind));
 
   return {
-    bind, mountCamera, startSign, stopSign, setDetecting, manualFlush,
+    bind, mountCamera, startSign, stopSign, setDetecting, setDemoMode,
+    commitGloss, manualFlush,
     startSpeech, stopSpeech, submitTyped, speak, routerState,
   };
 })();
