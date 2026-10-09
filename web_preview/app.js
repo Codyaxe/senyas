@@ -254,9 +254,10 @@ class _SpeechTranslationScreenState extends State<SpeechTranslationScreen> {
   }
 }`,
       actions: [
-        'Tap the Concentric Microphone button to toggle live listening ripple animation!',
-        'Tap the back arrow in header to return to Home dashboard.',
-        'Displays live translated text bubbles in English and Filipino.'
+        'LIVE: tap the mic for real speech recognition (fil-PH). Whispers loads on demand and unloads when you leave.',
+        'Every transcript is rewritten into short, easy-to-read sentences — the planned Gemma "deaf-reader" simplify step (rule-based stand-in here).',
+        'No SpeechRecognition in this browser? A typed-input fallback runs the same pipeline.',
+        'See the "Live Engine" inspector tab for router state and model log.'
       ]
     },
 
@@ -301,9 +302,10 @@ class _SignTranslationScreenState extends State<SignTranslationScreen> {
   }
 }`,
       actions: [
-        'Tap the Teal Speaker button to hear text-to-speech audio for "Kamusta ka?".',
-        'Tap the Big Circular Stop button at the bottom to toggle camera detection on/off.',
-        'Visual camera reticles and pulsing status ring indicator.'
+        'LIVE: real webcam + MediaPipe HandLandmarker — open this screen to grant camera access.',
+        'Hold a gesture ~0.5s to commit a gloss; pause (hands down) ~1.5s to translate the phrase.',
+        'Vocabulary: wave=KAMUSTA, open palm=HELLO, thumbs up=MAGANDA, thumbs down=HINDI, point=IKAW, peace=SALAMAT, fist=TULONG.',
+        'Speaker button reads the live translation aloud (TTS). Stop button pauses detection.'
       ]
     },
 
@@ -394,6 +396,9 @@ class _SignTranslationScreenState extends State<SignTranslationScreen> {
     // Update interaction list
     const interactionList = document.getElementById('interaction-list');
     interactionList.innerHTML = meta.actions.map(act => `<li>${act}</li>`).join('');
+
+    // Live pipeline lifecycle hook
+    if (window.__senyasOnScreen) window.__senyasOnScreen(key);
   }
 
   // Bind Screen Selector Tabs
@@ -447,29 +452,175 @@ class _SignTranslationScreenState extends State<SignTranslationScreen> {
   const signBackBtn = document.getElementById('sign-back-btn');
   if (signBackBtn) signBackBtn.addEventListener('click', () => switchScreen('home'));
 
-  // Speech Translation: Concentric Mic Toggle
+  // ================= LIVE MVP ENGINE WIRING =================
+  const Engine = window.SenyasEngine;
+  const Sign = window.SenyasSign;
+  const Speech = window.SenyasSpeech;
+
+  const el = id => document.getElementById(id);
+  const engineStateEl = el('engine-state'), engineModelsEl = el('engine-models'),
+        engineMemEl = el('engine-mem'), engineLogEl = el('engine-log');
+
+  function renderEngineState() {
+    if (!engineStateEl) return;
+    engineStateEl.innerHTML = `Router: <strong>${Engine.state.router}</strong>`;
+    const m = Engine.state.models;
+    engineModelsEl.innerHTML =
+      `<span class="eng-model ${m.gemma ? 'on' : ''}">Gemma-4-E2B ${m.gemma ? '●resident' : '○'}</span>` +
+      `<span class="eng-model ${m.whisper ? 'on' : ''}">Whisper-small ${m.whisper ? '●loaded' : '○unloaded'}</span>` +
+      `<span class="eng-model ${m.landmarker ? 'on' : ''}">HandLandmarker ${m.landmarker ? '●' : '○'}</span>`;
+    engineMemEl.textContent = `Simulated RSS: ${Engine.state.memoryMb} MB`;
+  }
+  function appendEngineLog(entry) {
+    if (!engineLogEl) return;
+    const div = document.createElement('div');
+    div.className = 'eng-log-line eng-' + entry.kind;
+    div.textContent = `${entry.t.toLocaleTimeString()}.${String(entry.t.getMilliseconds()).padStart(3,'0')}  ${entry.msg}`;
+    engineLogEl.appendChild(div);
+    engineLogEl.scrollTop = engineLogEl.scrollHeight;
+    while (engineLogEl.children.length > 120) engineLogEl.firstChild.remove();
+  }
+  Engine.on('log', appendEngineLog);
+  Engine.on('router', renderEngineState);
+  Engine.on('models', renderEngineState);
+
+  function addHistoryItem(type, text) {
+    const list = document.querySelector('.history-list');
+    if (!list) return;
+    const card = document.createElement('div');
+    card.className = 'history-card';
+    card.innerHTML = `
+      <div class="history-icon-circle ${type === 'sign' ? 'mint-deep' : 'blue-deep'}">
+        <img src="../assets/icons/${type === 'sign' ? 'wave_white' : 'spectrum_white'}.svg" alt="${type}">
+      </div>
+      <div class="history-info">
+        <span class="history-tag ${type === 'sign' ? 'mint-tag' : 'blue-tag'}">${type === 'sign' ? 'Sign' : 'Speech'} Translation</span>
+        <p class="history-text"></p>
+      </div>
+      <span class="history-time">${new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}</span>`;
+    card.querySelector('.history-text').textContent = text;
+    list.prepend(card);
+  }
+
+  // ---- Sign pipeline UI ----
+  let currentTranslation = '';
+  const glossTray = el('gloss-tray'), recMain = el('recognized-main'), recSub = el('recognized-sub');
+
+  // Populate vocab cheat sheet
+  const vocabList = el('vocab-list');
+  if (vocabList) {
+    vocabList.innerHTML = Object.entries(Engine.GLOSS_LEXICON)
+      .map(([g, v]) => `<li><strong>${v.signHint}</strong> &nbsp;${g} → "${v.fil}" <em>(${v.en})</em></li>`)
+      .join('');
+  }
+
+  function renderGlossChips(glosses) {
+    if (!glossTray) return;
+    glossTray.innerHTML = glosses.length
+      ? glosses.map(g => `<span class="gloss-chip">${g}</span>`).join('') + '<span class="gloss-hint">pause to translate</span>'
+      : '';
+  }
+
+  Sign.cb.onStatus = (status, label) => {
+    if (handStatusTag) {
+      handStatusTag.textContent =
+        status === 'hand' ? (label ? `Sign: ${label}` : 'Hand Tracking Active')
+        : status === 'no-hand' ? 'No hand detected'
+        : status === 'camera-denied' ? 'Camera permission denied'
+        : 'Model failed to load';
+    }
+  };
+  Sign.cb.onGloss = (gloss, phrase) => {
+    renderGlossChips(phrase);
+    if (detectingText) detectingText.textContent =
+      phrase.length ? `Recognized: ${phrase.join(' · ')}` : 'Detecting Sign...';
+  };
+  let streamActive = false;
+  Sign.cb.onToken = ch => {
+    if (!streamActive) { currentTranslation = ''; streamActive = true; }
+    currentTranslation += ch;
+    if (recMain) recMain.textContent = currentTranslation;
+  };
+  Sign.cb.onResult = (sentence, seq) => {
+    if (recSub) {
+      const lex = seq.map(g => `${g}`).join(' + ');
+      recSub.textContent = `(${lex})`;
+    }
+    addHistoryItem('sign', sentence);
+    streamActive = false;
+  };
+
+  // Screen lifecycle: start/stop real pipelines per screen
+  window.__senyasOnScreen = key => {
+    if (key === 'sign') {
+      Engine.boot().then(() => Sign.start(el('cam-video'), el('cam-canvas')));
+    } else {
+      Sign.stop();
+    }
+    if (key !== 'speech' && Speech.active) Speech.stop();
+  };
+
+  // Speech Translation: Concentric Mic Toggle (real STT)
   const micTrigger = document.getElementById('mic-trigger');
   const micStatusText = document.getElementById('mic-status-text');
+  const speechInterim = el('speech-interim');
+  const speechResults = el('speech-results');
+  const speechFallback = el('speech-fallback');
+  const typedInput = el('speech-typed-input');
+
+  function addSpeechCard(raw, simplified, lang) {
+    const card = document.createElement('div');
+    card.className = 'speech-bubble-card';
+    card.innerHTML = `<div class="bubble-text"><h4></h4><span class="bubble-tag">→ ${lang} · simplified</span><p class="bubble-raw"></p></div>`;
+    card.querySelector('h4').textContent = simplified;
+    card.querySelector('.bubble-raw').textContent = 'heard: "' + raw + '"';
+    speechResults.prepend(card);
+    addHistoryItem('speech', simplified);
+  }
+
+  Speech.cb.onState = s => {
+    if (s === 'listening') {
+      micTrigger.classList.add('listening');
+      micStatusText.textContent = 'Listening...';
+      micStatusText.style.color = '#318DEF';
+      speechFallback.style.display = 'none';
+    } else {
+      micTrigger.classList.remove('listening');
+      micStatusText.textContent = s === 'mic-denied' ? 'Mic denied — type below' : 'Tap to Speak';
+      micStatusText.style.color = s === 'mic-denied' ? '#D64545' : '#000000';
+      if (s === 'fallback' || s === 'mic-denied') speechFallback.style.display = 'flex';
+    }
+  };
+  Speech.cb.onInterim = t => { speechInterim.textContent = t; };
+  Speech.cb.onResult = (raw, simplified, lang) => {
+    speechInterim.textContent = '';
+    addSpeechCard(raw, simplified, lang);
+  };
+
   if (micTrigger) {
     micTrigger.addEventListener('click', () => {
-      isListening = !isListening;
-      micTrigger.classList.toggle('listening', isListening);
-      if (micStatusText) {
-        micStatusText.textContent = isListening ? 'Listening...' : 'Tap to Speak';
-        micStatusText.style.color = isListening ? '#318DEF' : '#000000';
+      if (Speech.active) { Speech.stop(); }
+      else { Speech.start(); }
+    });
+  }
+  if (typedInput) {
+    typedInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && typedInput.value.trim()) {
+        Speech.submitTyped(typedInput.value.trim());
+        typedInput.value = '';
       }
     });
   }
 
-  // Sign Translation: TTS Speaker Click
+  // Sign Translation: TTS Speaker Click (speaks the live translation)
   const speakerBtn = document.getElementById('speaker-tts-btn');
   if (speakerBtn) {
     speakerBtn.addEventListener('click', () => {
       speakerBtn.style.transform = 'scale(0.92)';
       setTimeout(() => speakerBtn.style.transform = '', 200);
 
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance('Kamusta ka?');
+      if ('speechSynthesis' in window && currentTranslation) {
+        const utterance = new SpeechSynthesisUtterance(currentTranslation);
         utterance.lang = 'fil-PH';
         window.speechSynthesis.speak(utterance);
       }
@@ -486,6 +637,8 @@ class _SignTranslationScreenState extends State<SignTranslationScreen> {
   if (btnToggleSign) {
     btnToggleSign.addEventListener('click', () => {
       isSignDetecting = !isSignDetecting;
+      Sign.setDetecting(isSignDetecting);
+      if (isSignDetecting) Sign.manualFlush();
       if (isSignDetecting) {
         btnToggleSign.style.background = '#50B09B';
         stopIconImg.src = '../assets/icons/stop.svg';

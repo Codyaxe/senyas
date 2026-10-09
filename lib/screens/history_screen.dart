@@ -4,6 +4,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_assets.dart';
 import '../constants/app_text_styles.dart';
 import '../models/translation_history.dart';
+import '../engine/engine.dart';
 import '../widgets/senyas_header.dart';
 
 /// Implementation of Figma Node 32:288 - History Page
@@ -20,13 +21,6 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  late List<TranslationHistoryItem> _items;
-
-  @override
-  void initState() {
-    super.initState();
-    _items = List.from(defaultHistoryItems);
-  }
 
   void _clearHistory() {
     showDialog(
@@ -41,7 +35,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           TextButton(
             onPressed: () {
-              setState(() => _items.clear());
+              HistoryStore.items.value = [];
               Navigator.pop(ctx);
             },
             child: const Text('Clear', style: TextStyle(color: Colors.red)),
@@ -82,7 +76,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         leading: const Icon(Icons.refresh),
                         title: const Text('Restore Sample Data'),
                         onTap: () {
-                          setState(() => _items = List.from(defaultHistoryItems));
+                          HistoryStore.items.value =
+                              List.of(defaultHistoryItems);
                           Navigator.pop(ctx);
                         },
                       ),
@@ -96,18 +91,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
         // History items list
         Expanded(
-          child: _items.isEmpty
-              ? _buildEmptyState()
-              : ListView.separated(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
-                  itemCount: _items.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final item = _items[index];
-                    return _buildHistoryCard(item);
-                  },
-                ),
+          child: ValueListenableBuilder<List<TranslationHistoryItem>>(
+            valueListenable: HistoryStore.items,
+            builder: (context, items, _) => items.isEmpty
+                ? _buildEmptyState()
+                : ListView.separated(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+                    itemCount: items.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      return _buildHistoryCard(item);
+                    },
+                  ),
+          ),
         ),
       ],
     );
