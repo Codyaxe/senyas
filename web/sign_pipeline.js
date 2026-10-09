@@ -220,6 +220,7 @@ window.SenyasSign = (() => {
     const seq = phraseGlosses;
     phraseGlosses = [];
     cb.onGloss && cb.onGloss(null, []);
+    if (cb.onPhrase) { cb.onPhrase(seq); return; } // Flutter router handles it
     const sentence = await Engine.gemmaRewrite(seq, cb.onToken);
     if (sentence) cb.onResult && cb.onResult(sentence, seq);
   }

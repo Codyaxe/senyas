@@ -81,7 +81,8 @@ class _SignTranslationScreenState extends State<SignTranslationScreen>
           _recognized = e.data['sentence'] as String;
           final seq = (e.data['glosses'] as List).join(' + ');
           _recognizedSub = '($seq)';
-          _sourceLabel = _labelFor(e.data['source'] as String?, e.data['warning'] as String?);
+          _sourceLabel = _labelFor(e.data['source'] as String?, e.data['warning'] as String?,
+              e.data['model'] as String?);
           _error = null;
           HistoryStore.add(TranslationType.sign, _recognized);
           break;
@@ -92,10 +93,10 @@ class _SignTranslationScreenState extends State<SignTranslationScreen>
     });
   }
 
-  static String _labelFor(String? source, String? warning) {
+  static String _labelFor(String? source, String? warning, String? model) {
     switch (source) {
       case 'gemma':
-        return 'Gemma (on-device)';
+        return model ?? 'Gemma';
       case 'ruleFallback':
         return 'Rule-based fallback${warning != null ? ' · $warning' : ''}';
       default:

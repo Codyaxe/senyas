@@ -6,5 +6,8 @@ import 'model_router.dart';
 /// Android: Cactus backend + push-to-talk recorder. Other IO platforms: no
 /// on-device runtime (the cactus plugin ships arm64 Android/iOS libs only).
 ModelRouter createRouter() => defaultTargetPlatform == TargetPlatform.android
-    ? ModelRouter(backend: CactusBackend(), recorder: PushToTalkRecorder())
+    ? ModelRouter(
+        backend: CactusBackend(),
+        recorder: PushToTalkRecorder(),
+        modelLabel: 'gemma3-1b (Cactus, on-device)')
     : ModelRouter();

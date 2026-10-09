@@ -11,6 +11,8 @@ window.SenyasBridge = (() => {
   function bind(h) { handlers = h || {}; }
 
   function mountCamera(container) {
+    container.style.width = '100%';
+    container.style.height = '100%';
     container.style.position = 'relative';
     container.style.overflow = 'hidden';
     video = document.createElement('video');
@@ -53,6 +55,8 @@ window.SenyasBridge = (() => {
   SenyasSign.cb.onGloss = (g, p) => cb('onGloss', g || '', p || []);
   SenyasSign.cb.onToken = ch => cb('onToken', ch);
   SenyasSign.cb.onResult = (s, seq) => cb('onSignResult', s, seq || []);
+  SenyasSign.cb.onPhrase = seq => cb('onPhrase', seq || []);
+  SenyasSpeech.cb.onTranscript = t => cb('onTranscript', t);
 
   SenyasSpeech.cb.onState = s => cb('onSpeechState', s);
   SenyasSpeech.cb.onInterim = t => cb('onSpeechInterim', t);

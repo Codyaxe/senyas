@@ -79,7 +79,7 @@ class _SpeechTranslationScreenState extends State<SpeechTranslationScreen>
             lang: e.data['lang'] as String,
             label: [
               switch (source) {
-                'gemma' => 'simplified by Gemma',
+                'gemma' => 'simplified by ${e.data['model'] ?? 'Gemma'}',
                 'rawTranscript' => 'raw transcript (not simplified)',
                 _ => 'demo rule engine',
               },

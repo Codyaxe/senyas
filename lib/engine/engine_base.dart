@@ -58,6 +58,7 @@ abstract class SenyasEngineApi {
         'sentence': r.text,
         'glosses': r.input.split(' '),
         'source': r.source.name,
+        'model': pipeline.modelLabel,
         if (r.warning != null) 'warning': r.warning!.message,
       });
     } on SenyasError catch (e) {
@@ -78,6 +79,7 @@ abstract class SenyasEngineApi {
       'simplified': r.text,
       'lang': speechLang == 'en' ? 'English' : 'Filipino',
       'source': r.source.name,
+      'model': pipeline.modelLabel,
       'recognizer': recognizer,
       if (r.warning != null) 'warning': r.warning!.message,
     });

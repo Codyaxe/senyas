@@ -35,9 +35,15 @@ class PipelineResult {
 ///  * a Whisper failure never disables the sign flow
 ///  * cancellation bumps [_epoch]; stale results are dropped, not shown
 class ModelRouter {
-  ModelRouter({InferenceBackend? backend, PushToTalkRecorder? recorder})
+  ModelRouter(
+      {InferenceBackend? backend,
+      PushToTalkRecorder? recorder,
+      this.modelLabel = 'Gemma'})
       : _backend = backend,
         _recorder = recorder;
+
+  /// Human-readable name of the LLM actually running (shown in the UI).
+  final String modelLabel;
 
   final InferenceBackend? _backend; // null => no on-device runtime (web/desktop)
   final PushToTalkRecorder? _recorder;
@@ -54,7 +60,7 @@ class ModelRouter {
   Future<void>? _whisperLoad;
   Future<void>? _bootFuture;
 
-  static const loadGemmaTimeout = Duration(seconds: 90);
+  static const loadGemmaTimeout = Duration(seconds: 240); // 2 GB web model
   static const loadWhisperTimeout = Duration(seconds: 30);
   static const transcribeTimeout = Duration(seconds: 45);
   static const generateTimeout = Duration(seconds: 30);

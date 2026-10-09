@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:ui_web' as ui_web;
 import 'package:web/web.dart' as web;
+import '../features/inference/pipeline.dart';
 import 'engine_base.dart';
 import 'engine_events.dart';
 
@@ -40,7 +42,18 @@ class WebEngine extends SenyasEngineApi {
         {'msg': 'JS demo router: ${s.toDart} (simulated)', 'kind': 'router'})).toJS;
     h['onLog'] = ((JSString m, JSString k) =>
         emit(EngineEvent.log, {'msg': m.toDart, 'kind': k.toDart})).toJS;
+    h['onPhrase'] = ((JSArray seq) {
+      unawaited(translateGlosses(
+          seq.toDart.map((e) => (e as JSString).toDart).toList()));
+    }).toJS;
+    // Chrome's Web Speech API streams audio to Google — NOT offline. Labeled.
+    h['onTranscript'] = ((JSString t) {
+      unawaited(simplifyAndEmit(t.toDart,
+          recognizer: 'Chrome Web Speech (cloud, not offline)'));
+    }).toJS;
     _b.callMethod('bind'.toJS, h);
+    // Must exist before the first HtmlElementView('senyas-cam') is built.
+    ensureCameraViewRegistered();
   }
 
   static bool isSupported() =>
@@ -65,11 +78,17 @@ class WebEngine extends SenyasEngineApi {
   }
 
   @override
-  Future<void> boot() async {}
+  Future<void> boot() async {
+    await pipeline.boot();
+    if (!pipeline.gemmaReady.value && pipeline.lastError.value != null) {
+      emitError(pipeline.lastError.value!);
+    }
+  }
 
   @override
   Future<void> enterSignMode() async {
     ensureCameraViewRegistered();
+    unawaited(boot()); // load Gemma 4 in parallel with the camera
     // Camera mounts when the HtmlElementView is built; retry briefly.
     for (var i = 0; i < 20; i++) {
       final ok = await (_b.callMethod('startSign'.toJS) as JSPromise).toDart;
@@ -91,15 +110,21 @@ class WebEngine extends SenyasEngineApi {
   void flushPhrase() => _b.callMethod('manualFlush'.toJS);
 
   @override
-  Future<void> startSpeech() async =>
-      _b.callMethod('startSpeech'.toJS);
+  Future<void> startSpeech() async {
+    unawaited(boot());
+    globalContext['SenyasSpeechLang'] =
+        (speechLang == 'en' ? 'en-US' : 'fil-PH').toJS;
+    _b.callMethod('startSpeech'.toJS);
+  }
 
   @override
   Future<void> stopSpeech() async => _b.callMethod('stopSpeech'.toJS);
 
   @override
-  void submitTyped(String text) =>
-      _b.callMethod('submitTyped'.toJS, text.toJS);
+  void submitTyped(String text) {
+    if (text.trim().isEmpty) return;
+    unawaited(boot().then((_) => simplifyAndEmit(text.trim(), recognizer: 'typed')));
+  }
 
   @override
   void speak(String text) => _b.callMethod('speak'.toJS, text.toJS);

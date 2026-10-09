@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'constants/app_colors.dart';
+import 'engine/engine.dart';
 import 'screens/introduction_screen.dart';
 import 'screens/main_tab_scaffold.dart';
 import 'screens/settings_screen.dart';
@@ -22,6 +23,9 @@ void main() {
   );
 
   runApp(const SenyasApp());
+  // Start loading the resident LLM immediately (Gemma 4 web load takes ~2 min
+  // the first time); screens show a loading state until it's ready.
+  senyas.boot();
 }
 
 class SenyasApp extends StatelessWidget {

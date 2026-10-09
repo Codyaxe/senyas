@@ -20,7 +20,7 @@ window.SenyasSpeech = (() => {
     if (!SR) { cb.onState && cb.onState('fallback'); return 'fallback'; }
     if (active) return 'listening';
     recog = new SR();
-    recog.lang = 'fil-PH';
+    recog.lang = window.SenyasSpeechLang || 'fil-PH';
     recog.interimResults = true;
     recog.continuous = false;
     recog.onresult = e => {
@@ -57,6 +57,7 @@ window.SenyasSpeech = (() => {
 
   function handleFinal(transcript) {
     if (!transcript) return;
+    if (cb.onTranscript) { cb.onTranscript(transcript); return; } // Flutter router
     const lang = detectLang(transcript);
     Engine.log(`Transcript (${lang}): "${transcript}"`, 'speech');
     const simplified = Engine.simplifyTranscript(transcript);
